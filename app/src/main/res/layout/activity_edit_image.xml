@@ -56,7 +56,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/top_bar">
 
-        <!-- 这里将放置图片预览组件 -->
+        <!-- 图片预览组件 -->
         <com.liang.imagecraft.CustomImageView
             android:id="@+id/image_preview"
             android:layout_width="match_parent"
@@ -64,6 +64,20 @@
             android:scaleType="matrix"
             tools:src="@drawable/ic_launcher_background" />
     </FrameLayout>
+
+    <!-- 新的工具栏区域（位于主工具栏上方） -->
+    <LinearLayout
+        android:id="@+id/secondary_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:background="@color/toolbar_background"
+        android:padding="2dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/toolbar_container"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent">
+        <!-- 这里将根据不同按钮显示不同内容 -->
+    </LinearLayout>
 
     <!-- 底部工具栏 -->
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -79,7 +93,10 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:scrollbars="none"
-            android:padding="16dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
@@ -101,9 +118,9 @@
                     android:textColor="@color/white"
                     android:textSize="12sp"
                     android:gravity="center"
-                    android:layout_marginStart="16dp"
+                    android:layout_marginStart="5dp"
                     app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toEndOf="@+id/btn_scale"
+                    app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
 
                 <!-- 旋转与翻转按钮 -->
@@ -117,7 +134,7 @@
                     android:textColor="@color/white"
                     android:textSize="12sp"
                     android:gravity="center"
-                    android:layout_marginStart="16dp"
+                    android:layout_marginStart="5dp"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toEndOf="@+id/btn_crop"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -133,7 +150,7 @@
                     android:textColor="@color/white"
                     android:textSize="12sp"
                     android:gravity="center"
-                    android:layout_marginStart="16dp"
+                    android:layout_marginStart="5dp"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toEndOf="@+id/btn_rotate"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -149,7 +166,7 @@
                     android:textColor="@color/white"
                     android:textSize="12sp"
                     android:gravity="center"
-                    android:layout_marginStart="16dp"
+                    android:layout_marginStart="5dp"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toEndOf="@+id/btn_brightness"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -165,7 +182,7 @@
                     android:textColor="@color/white"
                     android:textSize="12sp"
                     android:gravity="center"
-                    android:layout_marginStart="16dp"
+                    android:layout_marginStart="5dp"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toEndOf="@+id/btn_contrast"
                     app:layout_constraintTop_toTopOf="parent" />

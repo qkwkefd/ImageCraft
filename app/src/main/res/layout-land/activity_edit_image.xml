@@ -75,22 +75,41 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent">
         
-        <!-- 垂直滚动视图，用于放置工具栏按钮 -->
-        <ScrollView
-            android:id="@+id/toolbar_scroll"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:scrollbars="none"
-            android:padding="16dp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent">
-            
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/toolbar"
+        <!-- 新的工具栏区域（位于主工具栏左侧） -->
+            <LinearLayout
+                android:id="@+id/secondary_toolbar"
                 android:layout_width="80dp"
-                android:layout_height="wrap_content">
+                android:layout_height="match_parent"
+                android:background="@color/toolbar_background"
+                android:padding="2dp"
+                android:visibility="gone"
+                android:orientation="vertical"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/toolbar_scroll"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent">
+                <!-- 这里将根据不同按钮显示不同内容 -->
+            </LinearLayout>
+
+            <!-- 垂直滚动视图，用于放置工具栏按钮 -->
+            <ScrollView
+                android:id="@+id/toolbar_scroll"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:scrollbars="none"
+                android:paddingLeft="2dp"
+                android:paddingRight="2dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp"
+                app:layout_constraintStart_toEndOf="@id/secondary_toolbar"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent">
+                
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/toolbar"
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content">
 
                 
                 <!-- 裁剪按钮 -->
@@ -104,9 +123,9 @@
                     android:textColor="@color/white"
                     android:textSize="12sp"
                     android:gravity="center"
-                    android:layout_marginTop="16dp"
+                    android:layout_marginTop="5dp"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@+id/btn_scale" />
+                    app:layout_constraintTop_toTopOf="parent" />
 
                 <!-- 旋转与翻转按钮 -->
                 <androidx.appcompat.widget.AppCompatButton
@@ -119,7 +138,7 @@
                     android:textColor="@color/white"
                     android:textSize="12sp"
                     android:gravity="center"
-                    android:layout_marginTop="16dp"
+                    android:layout_marginTop="5dp"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@+id/btn_crop" />
 
@@ -134,7 +153,7 @@
                     android:textColor="@color/white"
                     android:textSize="12sp"
                     android:gravity="center"
-                    android:layout_marginTop="16dp"
+                    android:layout_marginTop="5dp"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@+id/btn_rotate" />
 
@@ -149,7 +168,7 @@
                     android:textColor="@color/white"
                     android:textSize="12sp"
                     android:gravity="center"
-                    android:layout_marginTop="16dp"
+                    android:layout_marginTop="5dp"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@+id/btn_brightness" />
 
@@ -164,7 +183,7 @@
                     android:textColor="@color/white"
                     android:textSize="12sp"
                     android:gravity="center"
-                    android:layout_marginTop="16dp"
+                    android:layout_marginTop="5dp"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@+id/btn_contrast" />
             </androidx.constraintlayout.widget.ConstraintLayout>

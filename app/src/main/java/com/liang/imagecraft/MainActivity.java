@@ -37,6 +37,7 @@ public class MainActivity extends AppCompatActivity {
     private ActivityResultLauncher<Intent> galleryLauncher;
     private ActivityResultLauncher<Intent> cameraLauncher;
     private Uri photoUri; // 用于存储拍摄照片的URI
+    private static final String KEY_PHOTO_URI = "photo_uri"; // 用于保存实例状态的键
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,6 +49,14 @@ public class MainActivity extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+        // 从实例状态中恢复photoUri（如果存在）
+        if (savedInstanceState != null && savedInstanceState.containsKey(KEY_PHOTO_URI)) {
+            String photoUriString = savedInstanceState.getString(KEY_PHOTO_URI);
+            if (photoUriString != null) {
+                photoUri = Uri.parse(photoUriString);
+            }
+        }
 
         // 初始化UI组件
         btnImportGallery = findViewById(R.id.btn_import_gallery);
@@ -193,6 +202,16 @@ public class MainActivity extends AppCompatActivity {
         return image;
     }
 
+    // 保存实例状态，用于横竖屏切换时恢复数据
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        // 保存photoUri
+        if (photoUri != null) {
+            outState.putString(KEY_PHOTO_URI, photoUri.toString());
+        }
+    }
+    
     // 处理权限请求结果
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {

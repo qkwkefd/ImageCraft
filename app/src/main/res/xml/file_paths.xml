@@ -4,4 +4,9 @@
     <external-files-path
         name="external_files"
         path="Pictures" />
+    
+    <!-- 配置FileProvider可以访问的缓存目录路径 -->
+    <cache-path
+        name="cache_files"
+        path="." />
 </paths>
