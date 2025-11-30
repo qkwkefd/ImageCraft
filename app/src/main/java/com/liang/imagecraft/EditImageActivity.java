@@ -3,6 +3,7 @@ package com.liang.imagecraft;
 import android.Manifest;
 import android.app.AlertDialog;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
@@ -17,11 +18,14 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.content.res.ColorStateList;
 import androidx.appcompat.widget.AppCompatButton;
 
 import java.util.Locale;
@@ -245,19 +249,113 @@ public class EditImageActivity extends AppCompatActivity {
                 // 将保存按钮改为确认按钮
                 btnSave.setText("确认");
             } else if (button == btnRotate) {
-                TextView textView = new TextView(this);
-                textView.setText("旋转工具");
-                textView.setTextColor(Color.WHITE);
-                textView.setGravity(Gravity.CENTER);
-                textView.setPadding(4, 4, 4, 4);
-                addViewToSecondaryToolbar(textView);
+                createRotateToolbar();
             } else if (button == btnBrightness) {
-                TextView textView = new TextView(this);
-                textView.setText("亮度工具");
-                textView.setTextColor(Color.WHITE);
-                textView.setGravity(Gravity.CENTER);
-                textView.setPadding(4, 4, 4, 4);
-                addViewToSecondaryToolbar(textView);
+                // 设置亮度工具栏的方向
+                boolean isPortrait = getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT;
+                secondaryToolbar.setOrientation(isPortrait ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
+
+                // 创建亮度标题
+                TextView brightnessTitle = new TextView(this);
+                brightnessTitle.setText("亮度调整");
+                brightnessTitle.setTextColor(Color.WHITE);
+                brightnessTitle.setGravity(Gravity.CENTER);
+                brightnessTitle.setPadding(8, 4, 8, 4);
+                brightnessTitle.setTextSize(14);
+
+                // 创建滑块组件
+                SeekBar brightnessSeekBar = new SeekBar(this);
+                brightnessSeekBar.setMax(200); // 0-200对应-100到100的亮度范围
+                brightnessSeekBar.setProgress(100); // 默认值为0（对应进度100）
+                brightnessSeekBar.setThumbTintList(ColorStateList.valueOf(Color.WHITE));
+                brightnessSeekBar.setProgressTintList(ColorStateList.valueOf(Color.CYAN));
+
+                // 创建亮度值显示
+                TextView brightnessValue = new TextView(this);
+                brightnessValue.setText("0");
+                brightnessValue.setTextColor(Color.WHITE);
+                brightnessValue.setGravity(Gravity.CENTER);
+                brightnessValue.setPadding(8, 4, 8, 4);
+                brightnessValue.setTextSize(14);
+
+                // 设置滑块监听器
+                brightnessSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                    @Override
+                    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                        if (fromUser) {
+                            int brightness = progress - 100; // 将0-200的进度转换为-100到100的亮度值
+                            imagePreview.adjustBrightness(brightness);
+                            brightnessValue.setText(String.valueOf(brightness));
+                        }
+                    }
+
+                    @Override
+                    public void onStartTrackingTouch(SeekBar seekBar) {}
+
+                    @Override
+                    public void onStopTrackingTouch(SeekBar seekBar) {}
+                });
+
+                // 根据屏幕方向添加组件
+                if (isPortrait) {
+                    // 竖屏模式：水平排列（保留原有逻辑）
+                    secondaryToolbar.addView(brightnessTitle, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
+                    secondaryToolbar.addView(brightnessSeekBar, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 3));
+                    secondaryToolbar.addView(brightnessValue, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
+                } else {
+                    // 横屏模式：垂直排列，滑块可滑动空间拉满
+                    secondaryToolbar.addView(brightnessTitle, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
+
+                    // 简化容器：仅一层垂直容器，直接撑满权重3的空间
+                    LinearLayout seekBarContainer = new LinearLayout(this);
+                    seekBarContainer.setOrientation(LinearLayout.VERTICAL); // 垂直容器
+                    seekBarContainer.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 3));
+                    seekBarContainer.setGravity(Gravity.CENTER);
+                    seekBarContainer.setPadding(0, 20, 0, 20);
+
+                    // 核心1：给滑块设置“足够大的固定宽度+撑满容器高度”，旋转后触摸区域足够宽
+                    LinearLayout.LayoutParams seekBarParams = new LinearLayout.LayoutParams(
+                            dp2px(this, 200), // 固定宽度（dp转px，足够宽）
+                            LinearLayout.LayoutParams.MATCH_PARENT // 高度撑满容器
+                    );
+                    brightnessSeekBar.setLayoutParams(seekBarParams);
+
+                    // 核心2：旋转滑块+修正旋转中心，避免偏移
+                    brightnessSeekBar.setRotation(270);
+                    // 延迟修正旋转中心（确保滑块已测量完成）
+                    brightnessSeekBar.post(() -> {
+                        brightnessSeekBar.setPivotX(brightnessSeekBar.getWidth() / 2f);
+                        brightnessSeekBar.setPivotY(brightnessSeekBar.getHeight() / 2f);
+                    });
+
+                    // 核心3：重写触摸事件，让整个滑块区域响应上下滑动（关键！）
+                    brightnessSeekBar.setOnTouchListener((v, event) -> {
+                        int action = event.getAction();
+                        if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_MOVE) {
+                            // 获取滑块实际高度（旋转后的可滑动区域）
+                            float height = v.getHeight();
+                            // 触摸Y坐标 → 转换为SeekBar进度（上下滑动对应进度变化）
+                            float touchY = event.getX();
+                            int max = brightnessSeekBar.getMax();
+                            int progress = (int) (( touchY) / height * max);
+                            progress = Math.max(0, Math.min(max, progress));
+                            brightnessSeekBar.setProgress(progress);
+
+                            // 同步更新亮度值（复用原有逻辑）
+                            int brightness = progress - 100;
+                            imagePreview.adjustBrightness(brightness);
+                            brightnessValue.setText(String.valueOf(brightness));
+                            return true;
+                        }
+                        return v.onTouchEvent(event);
+                    });
+
+                    seekBarContainer.addView(brightnessSeekBar);
+                    secondaryToolbar.addView(seekBarContainer);
+                    secondaryToolbar.addView(brightnessValue, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
+                }
+
+
             } else if (button == btnContrast) {
                 TextView textView = new TextView(this);
                 textView.setText("对比度工具");
@@ -273,6 +371,80 @@ public class EditImageActivity extends AppCompatActivity {
                 textView.setPadding(4, 4, 4, 4);
                 addViewToSecondaryToolbar(textView);
             }
+        }
+    }
+    // 补充：dp转px工具方法（放在Activity里）
+    public static int dp2px(Context context, float dp) {
+        float density = context.getResources().getDisplayMetrics().density;
+        return (int) (dp * density + 0.5f);
+    }
+    /**
+     * 创建旋转工具栏
+     */
+    private void createRotateToolbar() {
+        // 设置旋转工具栏的方向
+        boolean isPortrait = getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT;
+        secondaryToolbar.setOrientation(isPortrait ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
+        
+        // 创建旋转和翻转按钮
+        String[] rotateOptions = {"↶ 逆时针90°", "↷ 顺时针90°", "↻ 旋转180°", "⇄ 水平翻转", "⇅ 垂直翻转"};
+        int[] rotateActions = {0, 1, 2, 3, 4}; // 0:逆时针90°, 1:顺时针90°, 2:旋转180°, 3:水平翻转, 4:垂直翻转
+        
+        for (int i = 0; i < rotateOptions.length; i++) {
+            final String option = rotateOptions[i];
+            final int action = rotateActions[i];
+            
+            AppCompatButton rotateButton = new AppCompatButton(this);
+            rotateButton.setText(option);
+            rotateButton.setTextColor(Color.WHITE);
+            rotateButton.setBackgroundTintList(getResources().getColorStateList(BUTTON_BACKGROUND_NORMAL));
+            rotateButton.setTextSize(12);
+            rotateButton.setPadding(4, 4, 4, 4);
+            
+            // 设置布局参数
+            LinearLayout.LayoutParams params;
+            if (isPortrait) {
+                params = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1);
+            } else {
+                params = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1);
+            }
+            
+            // 添加间距
+            params.setMargins(2, 2, 2, 2);
+            rotateButton.setLayoutParams(params);
+            
+            // 设置点击事件
+            rotateButton.setOnClickListener(v -> {
+                // 防止按钮状态改变
+                v.setPressed(false);
+                
+                // 执行对应的旋转或翻转操作
+                switch (action) {
+                    case 0:
+                        // 逆时针旋转90°
+                        imagePreview.rotateCounterClockwise();
+                        break;
+                    case 1:
+                        // 顺时针旋转90°
+                        imagePreview.rotateClockwise();
+                        break;
+                    case 2:
+                        // 旋转180°
+                        imagePreview.rotate180();
+                        break;
+                    case 3:
+                        // 水平翻转
+                        imagePreview.flipHorizontal();
+                        break;
+                    case 4:
+                        // 垂直翻转
+                        imagePreview.flipVertical();
+                        break;
+                }
+            });
+            
+            // 添加到工具栏
+            secondaryToolbar.addView(rotateButton);
         }
     }
     
@@ -440,16 +612,16 @@ public class EditImageActivity extends AppCompatActivity {
      */
     private void saveImageToGallery() {
         try {
-            if (currentImageUri == null) {
-                Toast.makeText(this, "没有可保存的图片", Toast.LENGTH_SHORT).show();
+            // 获取当前显示的包含所有变换（旋转、翻转等）的图片
+            Bitmap currentBitmap = imagePreview.getCurrentDisplayedBitmap();
+            
+            if (currentBitmap == null) {
+                Toast.makeText(this, "获取图片失败", Toast.LENGTH_SHORT).show();
                 return;
             }
             
-            // 直接从URI加载原始图片，避免包含黑边
-            Bitmap bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), currentImageUri);
-            
             // 添加水印
-            Bitmap bitmapWithWatermark = addWatermark(bitmap);
+            Bitmap bitmapWithWatermark = addWatermark(currentBitmap);
             
             // 保存到相册
             String savedImagePath = saveBitmapToGallery(bitmapWithWatermark);

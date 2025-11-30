@@ -70,7 +70,7 @@
         android:id="@+id/secondary_toolbar"
         android:layout_width="match_parent"
         android:layout_height="80dp"
-        android:background="@color/toolbar_background"
+        android:background="@color/button_background"
         android:padding="2dp"
         android:visibility="gone"
         app:layout_constraintBottom_toTopOf="@id/toolbar_container"

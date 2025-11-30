@@ -4,6 +4,9 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
+import android.graphics.LightingColorFilter;
 import android.graphics.DashPathEffect;
 import android.graphics.Matrix;
 import android.graphics.Paint;
@@ -20,7 +23,7 @@ import android.widget.ImageView;
 public class CustomImageView extends androidx.appcompat.widget.AppCompatImageView {
 
     private Matrix matrix = new Matrix();
-    private float minScale = 0.5f;
+    private float minScale = 0.3f;
     private float maxScale = 2.0f;
 
     private enum Mode {
@@ -30,12 +33,16 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
     private Mode mode = Mode.NONE;
     private PointF last = new PointF();
     private PointF start = new PointF();
-    private float minScaleFactor = 0.5f;
+    private float minScaleFactor = 0.3f;
     private float maxScaleFactor = 2.0f;
     private float[] m = new float[9];
     private ScaleGestureDetector scaleGestureDetector;
     private Context context;
-    
+    private int brightness = 0; // 亮度值，范围为-100到100，默认值为0
+    private Bitmap originalBitmap = null; // 保存原始图像的引用
+    // 新增：真正的原始图片（仅首次加载赋值，永不修改）
+    private Bitmap baseOriginalBitmap = null;
+
     // 裁剪相关属性
     private boolean isCropMode = false;
     private RectF cropRect = new RectF();
@@ -468,16 +475,27 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
                 scaleCropRect(detector.getFocusX(), detector.getFocusY(), scaleFactor);
             } else {
                 // 非裁剪模式下，缩放图像
-                float origScale = getCurrentScale();
                 
-                // Apply scale factor limits
-                if (origScale * scaleFactor < minScale) {
-                    scaleFactor = minScale / origScale;
-                } else if (origScale * scaleFactor > maxScale) {
-                    scaleFactor = maxScale / origScale;
+                // 创建一个新的矩阵来计算当前的完整变换
+                Matrix tempMatrix = new Matrix(matrix);
+                
+                // 尝试应用缩放因子
+                tempMatrix.postScale(scaleFactor, scaleFactor, detector.getFocusX(), detector.getFocusY());
+                
+                // 获取应用缩放后的矩阵值
+                float[] tempValues = new float[9];
+                tempMatrix.getValues(tempValues);
+                
+                // 计算实际的缩放比例（考虑旋转等变换）
+                float scaleX = tempValues[Matrix.MSCALE_X];
+                float skewX = tempValues[Matrix.MSKEW_X];
+                float currentScale = (float) Math.sqrt(scaleX * scaleX + skewX * skewX);
+                
+                // 检查是否在缩放范围内
+                if (currentScale >= minScale && currentScale <= maxScale) {
+                    // 如果在范围内，应用缩放
+                    matrix.postScale(scaleFactor, scaleFactor, detector.getFocusX(), detector.getFocusY());
                 }
-                
-                matrix.postScale(scaleFactor, scaleFactor, detector.getFocusX(), detector.getFocusY());
             }
             return true;
         }
@@ -540,11 +558,225 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
 
     private float getCurrentScale() {
         matrix.getValues(m);
-        return m[Matrix.MSCALE_X];
+        // 计算实际的缩放比例（考虑旋转等变换）
+        float scaleX = m[Matrix.MSCALE_X];
+        float skewX = m[Matrix.MSKEW_X];
+        return (float) Math.sqrt(scaleX * scaleX + skewX * skewX);
+    }
+    
+    /**
+     * 调整图像亮度
+     * @param brightness 亮度值，范围为-100到100
+     */
+    public void adjustBrightness(int brightness) {
+        this.brightness = brightness;
+        applyImageEffects();
+    }
+    
+    @Override
+    public void setImageBitmap(Bitmap bm) {
+        super.setImageBitmap(bm);
+        // 保存原始图像的引用
+        if (bm != null) {
+            this.originalBitmap = bm.copy(bm.getConfig(), true);
+        }
+    }
+    
+    @Override
+    public void setImageDrawable(Drawable drawable) {
+        super.setImageDrawable(drawable);
+        // 保存原始图像的引用
+        if (drawable instanceof BitmapDrawable) {
+            Bitmap bm = ((BitmapDrawable) drawable).getBitmap();
+            if (bm != null) {
+                this.originalBitmap = bm.copy(bm.getConfig(), true);
+            }
+        }
+    }
+    
+    /**
+     * 获取当前亮度值
+     * @return 当前亮度值
+     */
+    public int getBrightness() {
+        return brightness;
+    }
+    
+    /**
+     * 应用图像效果（亮度调节）
+     */
+    private void applyImageEffects() {
+        try {
+            // 初始化真正的原始图片（仅首次加载，永不覆盖）
+            if (baseOriginalBitmap == null) {
+                Drawable drawable = getDrawable();
+                if (drawable instanceof BitmapDrawable) {
+                    Bitmap bm = ((BitmapDrawable) drawable).getBitmap();
+                    if (bm != null) {
+                        baseOriginalBitmap = bm.copy(bm.getConfig(), true);
+                    }
+                }
+                if (baseOriginalBitmap == null) return;
+            }
+
+            // 始终基于真正的原始图片创建新图
+            final Bitmap brightenedBitmap = Bitmap.createBitmap(baseOriginalBitmap.getWidth(), baseOriginalBitmap.getHeight(), baseOriginalBitmap.getConfig());
+            Canvas canvas = new Canvas(brightenedBitmap);
+
+            Paint paint = new Paint();
+
+            // 亮度系数计算（保留原有逻辑）
+            float brightnessScale = 1 + (brightness / 100f);
+            brightnessScale = Math.max(0.1f, Math.min(1.9f, brightnessScale));
+
+            ColorMatrix colorMatrix = new ColorMatrix();
+            colorMatrix.set(new float[]{
+                    brightnessScale, 0, 0, 0, 0,
+                    0, brightnessScale, 0, 0, 0,
+                    0, 0, brightnessScale, 0, 0,
+                    0, 0, 0, 1, 0
+            });
+            paint.setColorFilter(new ColorMatrixColorFilter(colorMatrix));
+
+            // 绘制真正的原始图片（核心：不再用被覆盖的originalBitmap）
+            canvas.drawBitmap(baseOriginalBitmap, 0, 0, paint);
+
+            post(() -> {
+                try {
+                    if (brightenedBitmap != null && !brightenedBitmap.isRecycled()) {
+                        Matrix currentMatrix = new Matrix(matrix);
+                        // 此处调用setImageBitmap会覆盖originalBitmap，但不影响baseOriginalBitmap
+                        setImageBitmap(brightenedBitmap);
+                        setImageMatrix(currentMatrix);
+                        invalidate();
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        } catch (OutOfMemoryError e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void setScaleRange(float minScale, float maxScale) {
         this.minScale = minScale;
         this.maxScale = maxScale;
+    }
+    
+    /**
+     * 顺时针旋转90°
+     */
+    public void rotateClockwise() {
+        // 旋转矩阵（顺时针90°）
+        matrix.postRotate(90, getWidth() / 2, getHeight() / 2);
+        setImageMatrix(matrix);
+        invalidate();
+    }
+    
+    /**
+     * 逆时针旋转90°
+     */
+    public void rotateCounterClockwise() {
+        // 旋转矩阵（逆时针90°）
+        matrix.postRotate(-90, getWidth() / 2, getHeight() / 2);
+        setImageMatrix(matrix);
+        invalidate();
+    }
+    
+    /**
+     * 旋转180°
+     */
+    public void rotate180() {
+        // 旋转矩阵（180°）
+        matrix.postRotate(180, getWidth() / 2, getHeight() / 2);
+        setImageMatrix(matrix);
+        invalidate();
+    }
+    
+    /**
+     * 水平翻转
+     */
+    public void flipHorizontal() {
+        // 计算当前缩放因子
+        float currentScale = getCurrentScale();
+        
+        // 水平翻转矩阵
+        matrix.preScale(-1, 1, getWidth() / 2, getHeight() / 2);
+        setImageMatrix(matrix);
+        invalidate();
+    }
+    
+    /**
+     * 垂直翻转
+     */
+    public void flipVertical() {
+        // 计算当前缩放因子
+        float currentScale = getCurrentScale();
+        
+        // 垂直翻转矩阵
+        matrix.preScale(1, -1, getWidth() / 2, getHeight() / 2);
+        setImageMatrix(matrix);
+        invalidate();
+    }
+    
+    /**
+     * 获取当前显示的包含所有变换的Bitmap
+     * @return 当前显示的Bitmap，不包含黑边
+     */
+    public Bitmap getCurrentDisplayedBitmap() {
+        // 获取原始图像
+        Drawable drawable = getDrawable();
+        if (!(drawable instanceof BitmapDrawable)) return null;
+        
+        Bitmap originalBitmap = ((BitmapDrawable) drawable).getBitmap();
+        
+        // 创建一个与原始图像大小相同的临时Bitmap
+        Bitmap tempBitmap = Bitmap.createBitmap(getWidth(), getHeight(), Bitmap.Config.ARGB_8888);
+        Canvas tempCanvas = new Canvas(tempBitmap);
+        
+        // 绘制应用了所有变换的图像
+        tempCanvas.drawColor(Color.TRANSPARENT);
+        tempCanvas.drawBitmap(originalBitmap, matrix, null);
+        
+        // 计算实际图像的边界，去除透明区域（黑边）
+        int top = tempBitmap.getHeight();
+        int bottom = 0;
+        int left = tempBitmap.getWidth();
+        int right = 0;
+        
+        int[] pixels = new int[tempBitmap.getWidth() * tempBitmap.getHeight()];
+        tempBitmap.getPixels(pixels, 0, tempBitmap.getWidth(), 0, 0, tempBitmap.getWidth(), tempBitmap.getHeight());
+        
+        for (int y = 0; y < tempBitmap.getHeight(); y++) {
+            for (int x = 0; x < tempBitmap.getWidth(); x++) {
+                int pixel = pixels[y * tempBitmap.getWidth() + x];
+                // 检查像素是否不透明（不是完全透明的）
+                if ((pixel & 0xFF000000) != 0) {
+                    top = Math.min(top, y);
+                    bottom = Math.max(bottom, y);
+                    left = Math.min(left, x);
+                    right = Math.max(right, x);
+                }
+            }
+        }
+        
+        // 如果没有找到不透明像素，返回临时Bitmap
+        if (top > bottom || left > right) {
+            return tempBitmap;
+        }
+        
+        // 裁剪出实际图像区域，去除透明黑边
+        int cropWidth = right - left + 1;
+        int cropHeight = bottom - top + 1;
+        
+        Bitmap croppedBitmap = Bitmap.createBitmap(tempBitmap, left, top, cropWidth, cropHeight);
+        
+        // 释放临时Bitmap的内存
+        tempBitmap.recycle();
+        
+        return croppedBitmap;
     }
 }
