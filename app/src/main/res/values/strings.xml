@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">ImageCraft</string>
+    <string name="import_from_gallery">相册导入</string>
+    <string name="take_photo">相机拍摄</string>
+</resources>

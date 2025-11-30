@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/edit_image_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black"
+    tools:context=".EditImageActivity">
+
+    <!-- 图片编辑区域 -->
+    <FrameLayout
+        android:id="@+id/image_edit_area"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@color/dark_gray"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/toolbar_container"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- 这里将放置图片预览组件 -->
+        <com.liang.imagecraft.CustomImageView
+            android:id="@+id/image_preview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="matrix"
+            tools:src="@drawable/ic_launcher_background" />
+
+        <!-- 顶部按钮栏 (置于图片编辑区域内) -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/top_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp"
+            android:translationZ="10dp"> <!-- 确保在顶层显示 -->
+
+            <!-- 返回按钮 -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_back"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:backgroundTint="@color/button_background"
+                android:drawableTop="@android:drawable/ic_menu_revert"
+                android:text="返回"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:gravity="center"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <!-- 保存按钮 -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_save"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:backgroundTint="@color/button_cyan"
+                android:drawableTop="@android:drawable/ic_menu_save"
+                android:text="保存"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:gravity="center"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </FrameLayout>
+
+    <!-- 右侧工具栏 -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/toolbar_container"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:background="@color/button_background"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+        
+        <!-- 垂直滚动视图，用于放置工具栏按钮 -->
+        <ScrollView
+            android:id="@+id/toolbar_scroll"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:scrollbars="none"
+            android:padding="16dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
+            
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/toolbar"
+                android:layout_width="80dp"
+                android:layout_height="wrap_content">
+
+                
+                <!-- 裁剪按钮 -->
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btn_crop"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:backgroundTint="@color/button_background"
+                    android:drawableTop="@android:drawable/ic_menu_crop"
+                    android:text="裁剪"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:layout_marginTop="16dp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/btn_scale" />
+
+                <!-- 旋转与翻转按钮 -->
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btn_rotate"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:backgroundTint="@color/button_background"
+                    android:drawableTop="@android:drawable/ic_menu_rotate"
+                    android:text="旋转"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:layout_marginTop="16dp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/btn_crop" />
+
+                <!-- 亮度按钮 -->
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btn_brightness"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:backgroundTint="@color/button_background"
+                    android:drawableTop="@android:drawable/ic_menu_slideshow"
+                    android:text="亮度"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:layout_marginTop="16dp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/btn_rotate" />
+
+                <!-- 对比度按钮 -->
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btn_contrast"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:backgroundTint="@color/button_background"
+                    android:drawableTop="@android:drawable/ic_menu_preferences"
+                    android:text="对比度"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:layout_marginTop="16dp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/btn_brightness" />
+
+                <!-- 文字按钮 -->
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btn_text"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:backgroundTint="@color/button_background"
+                    android:drawableTop="@android:drawable/ic_menu_edit"
+                    android:text="文字"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:layout_marginTop="16dp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/btn_contrast" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </ScrollView>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

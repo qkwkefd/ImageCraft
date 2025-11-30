@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Base.Theme.ImageCraft" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/button_background</item>
+        <item name="shapeAppearanceSmallComponent">@style/CustomButtonShape</item>
+    </style>
+    <style name="Theme.ImageCraft" parent="Base.Theme.ImageCraft" />
+    <style name="CustomButtonShape" parent="ShapeAppearance.Material3.SmallComponent">
+        <item name="cornerSize">1dp </item>
+    </style>
+</resources>
