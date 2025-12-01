@@ -39,6 +39,7 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
     private ScaleGestureDetector scaleGestureDetector;
     private Context context;
     private int brightness = 0; // 亮度值，范围为-100到100，默认值为0
+    private int contrast = 0; // 对比度值，范围为-50到150
     private Bitmap originalBitmap = null; // 保存原始图像的引用
     // 新增：真正的原始图片（仅首次加载赋值，永不修改）
     private Bitmap baseOriginalBitmap = null;
@@ -603,7 +604,24 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
     }
     
     /**
-     * 应用图像效果（亮度调节）
+     * 调整图像对比度
+     * @param contrast 对比度值，范围为-50到150
+     */
+    public void adjustContrast(int contrast) {
+        this.contrast = contrast;
+        applyImageEffects();
+    }
+    
+    /**
+     * 获取当前对比度值
+     * @return 当前对比度值
+     */
+    public int getContrast() {
+        return contrast;
+    }
+    
+    /**
+     * 应用图像效果（亮度和对比度调节）
      */
     private void applyImageEffects() {
         try {
@@ -620,20 +638,28 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
             }
 
             // 始终基于真正的原始图片创建新图
-            final Bitmap brightenedBitmap = Bitmap.createBitmap(baseOriginalBitmap.getWidth(), baseOriginalBitmap.getHeight(), baseOriginalBitmap.getConfig());
-            Canvas canvas = new Canvas(brightenedBitmap);
+            final Bitmap processedBitmap = Bitmap.createBitmap(baseOriginalBitmap.getWidth(), baseOriginalBitmap.getHeight(), baseOriginalBitmap.getConfig());
+            Canvas canvas = new Canvas(processedBitmap);
 
             Paint paint = new Paint();
 
-            // 亮度系数计算（保留原有逻辑）
+            // 亮度系数计算
             float brightnessScale = 1 + (brightness / 100f);
             brightnessScale = Math.max(0.1f, Math.min(1.9f, brightnessScale));
+            
+            // 对比度系数计算（范围-50到150转换为0.5到2.5的比例）
+            float contrastScale = 1 + (contrast / 100f);
+            contrastScale = Math.max(0.5f, Math.min(2.5f, contrastScale));
 
             ColorMatrix colorMatrix = new ColorMatrix();
+            // 先应用对比度，再应用亮度
+            // 对比度矩阵: [contrast, 0, 0, 0, (1-contrast)*128]
+            // 亮度矩阵: [brightness, 0, 0, 0, (brightness-1)*128]
+            // 合并后的矩阵
             colorMatrix.set(new float[]{
-                    brightnessScale, 0, 0, 0, 0,
-                    0, brightnessScale, 0, 0, 0,
-                    0, 0, brightnessScale, 0, 0,
+                    brightnessScale * contrastScale, 0, 0, 0, (1-contrastScale)*128 * brightnessScale,
+                    0, brightnessScale * contrastScale, 0, 0, (1-contrastScale)*128 * brightnessScale,
+                    0, 0, brightnessScale * contrastScale, 0, (1-contrastScale)*128 * brightnessScale,
                     0, 0, 0, 1, 0
             });
             paint.setColorFilter(new ColorMatrixColorFilter(colorMatrix));
@@ -643,10 +669,10 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
 
             post(() -> {
                 try {
-                    if (brightenedBitmap != null && !brightenedBitmap.isRecycled()) {
+                    if (processedBitmap != null && !processedBitmap.isRecycled()) {
                         Matrix currentMatrix = new Matrix(matrix);
                         // 此处调用setImageBitmap会覆盖originalBitmap，但不影响baseOriginalBitmap
-                        setImageBitmap(brightenedBitmap);
+                        setImageBitmap(processedBitmap);
                         setImageMatrix(currentMatrix);
                         invalidate();
                     }

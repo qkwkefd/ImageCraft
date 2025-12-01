@@ -263,16 +263,19 @@ public class EditImageActivity extends AppCompatActivity {
                 brightnessTitle.setPadding(8, 4, 8, 4);
                 brightnessTitle.setTextSize(14);
 
+                // 获取当前亮度值
+                int currentBrightness = imagePreview.getBrightness();
+
                 // 创建滑块组件
                 SeekBar brightnessSeekBar = new SeekBar(this);
                 brightnessSeekBar.setMax(200); // 0-200对应-100到100的亮度范围
-                brightnessSeekBar.setProgress(100); // 默认值为0（对应进度100）
+                brightnessSeekBar.setProgress(currentBrightness + 100); // 设置为当前亮度值（对应进度100+brightness）
                 brightnessSeekBar.setThumbTintList(ColorStateList.valueOf(Color.WHITE));
                 brightnessSeekBar.setProgressTintList(ColorStateList.valueOf(Color.CYAN));
 
                 // 创建亮度值显示
                 TextView brightnessValue = new TextView(this);
-                brightnessValue.setText("0");
+                brightnessValue.setText(String.valueOf(currentBrightness));
                 brightnessValue.setTextColor(Color.WHITE);
                 brightnessValue.setGravity(Gravity.CENTER);
                 brightnessValue.setPadding(8, 4, 8, 4);
@@ -357,12 +360,106 @@ public class EditImageActivity extends AppCompatActivity {
 
 
             } else if (button == btnContrast) {
-                TextView textView = new TextView(this);
-                textView.setText("对比度工具");
-                textView.setTextColor(Color.WHITE);
-                textView.setGravity(Gravity.CENTER);
-                textView.setPadding(4, 4, 4, 4);
-                addViewToSecondaryToolbar(textView);
+
+                // 设置方向：竖屏水平排列 / 横屏垂直排列
+                boolean isPortrait = getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT;
+                secondaryToolbar.setOrientation(isPortrait ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
+
+                // 标题（完全复制亮度样式）
+                TextView contrastTitle = new TextView(this);
+                contrastTitle.setText("对比度调整");
+                contrastTitle.setTextColor(Color.WHITE);
+                contrastTitle.setGravity(Gravity.CENTER);
+                contrastTitle.setPadding(8, 4, 8, 4);
+                contrastTitle.setTextSize(14);
+
+                // 当前对比度
+                int currentContrast = imagePreview.getContrast();
+
+                // 滑块
+                SeekBar contrastSeekBar = new SeekBar(this);
+                contrastSeekBar.setMax(200); // -50 到 150
+                contrastSeekBar.setProgress(currentContrast + 50); // 50 + contrast
+                contrastSeekBar.setThumbTintList(ColorStateList.valueOf(Color.WHITE));
+                contrastSeekBar.setProgressTintList(ColorStateList.valueOf(Color.CYAN));
+
+                // 对比度数值显示
+                TextView contrastValue = new TextView(this);
+                contrastValue.setText(String.valueOf(currentContrast));
+                contrastValue.setTextColor(Color.WHITE);
+                contrastValue.setGravity(Gravity.CENTER);
+                contrastValue.setPadding(8, 4, 8, 4);
+                contrastValue.setTextSize(14);
+
+                // 监听（保留逻辑）
+                contrastSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                    @Override
+                    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                        int contrast = progress - 50;
+                        imagePreview.adjustContrast(contrast);
+                        contrastValue.setText(String.valueOf(contrast));
+                    }
+                    @Override
+                    public void onStartTrackingTouch(SeekBar seekBar) {}
+                    @Override
+                    public void onStopTrackingTouch(SeekBar seekBar) {}
+                });
+
+                if (isPortrait) {
+                    // === 竖屏排列 ===（完全复制亮度布局）
+                    secondaryToolbar.addView(contrastTitle, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
+                    secondaryToolbar.addView(contrastSeekBar, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 3));
+                    secondaryToolbar.addView(contrastValue, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
+
+                } else {
+                    // === 横屏排列 ===（完全还原亮度逻辑）===
+
+                    secondaryToolbar.addView(contrastTitle, new LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
+
+                    LinearLayout seekBarContainer = new LinearLayout(this);
+                    seekBarContainer.setOrientation(LinearLayout.VERTICAL);
+                    seekBarContainer.setLayoutParams(new LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT, 0, 3));
+                    seekBarContainer.setGravity(Gravity.CENTER);
+                    seekBarContainer.setPadding(0, 20, 0, 20);
+
+                    LinearLayout.LayoutParams seekBarParams = new LinearLayout.LayoutParams(
+                            dp2px(this, 200),  // 固定宽度，旋转后即为滑动长度
+                            LinearLayout.LayoutParams.MATCH_PARENT);
+                    contrastSeekBar.setLayoutParams(seekBarParams);
+
+                    // 旋转和 pivot 修正
+                    contrastSeekBar.setRotation(270);
+                    contrastSeekBar.post(() -> {
+                        contrastSeekBar.setPivotX(contrastSeekBar.getWidth() / 2f);
+                        contrastSeekBar.setPivotY(contrastSeekBar.getHeight() / 2f);
+                    });
+
+                    // 滑动修复（触摸区域充足）
+                    contrastSeekBar.setOnTouchListener((v, event) -> {
+                        int action = event.getAction();
+                        if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_MOVE) {
+                            float height = v.getHeight();
+                            float touchY = event.getX();
+                            int max = contrastSeekBar.getMax();
+                            int progress = (int)((touchY / height) * max);
+                            progress = Math.max(0, Math.min(max, progress));
+                            contrastSeekBar.setProgress(progress);
+
+                            int contrast = progress - 50;
+                            imagePreview.adjustContrast(contrast);
+                            contrastValue.setText(String.valueOf(contrast));
+                            return true;
+                        }
+                        return v.onTouchEvent(event);
+                    });
+
+                    seekBarContainer.addView(contrastSeekBar);
+                    secondaryToolbar.addView(seekBarContainer);
+                    secondaryToolbar.addView(contrastValue, new LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
+                }
             } else if (button == btnText) {
                 TextView textView = new TextView(this);
                 textView.setText("文字工具");
