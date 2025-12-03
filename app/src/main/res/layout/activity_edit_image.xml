@@ -30,6 +30,21 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
+        <!-- 日间/夜间模式切换开关 -->
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/btn_theme_switch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:thumbTint="@color/button_cyan"
+            android:trackTint="@color/button_background"
+            android:text="夜间模式"
+            android:textColor="@color/white"
+            android:textSize="12sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:showText="false" />
+
         <!-- 保存按钮 -->
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_save"
@@ -62,6 +77,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="matrix"
+            android:contentDescription="图片预览"
             tools:src="@drawable/ic_launcher_background" />
     </FrameLayout>
 

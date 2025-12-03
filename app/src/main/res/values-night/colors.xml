@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="dark_gray">#FFE0E0E0</color>
+    <color name="button_background">#FFB0B0B0</color>
+    <color name="button_purple">#9C27B0</color>
+    <color name="button_cyan">#00BCD4</color>
+    <color name="toolbar_background">#FFE0E0E0</color>
+</resources>

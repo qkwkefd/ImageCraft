@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
@@ -36,6 +37,8 @@ import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.content.res.ColorStateList;
 import androidx.appcompat.widget.AppCompatButton;
+import androidx.appcompat.widget.SwitchCompat;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.constraintlayout.widget.ConstraintLayout;
 
 import java.util.Locale;
@@ -89,6 +92,11 @@ public class EditImageActivity extends AppCompatActivity {
     private static final int BUTTON_BACKGROUND_SELECTED = R.color.button_cyan;
     private static final int BUTTON_BACKGROUND_CONFIRM = R.color.button_purple;
     
+    // 主题切换相关
+    private SwitchCompat btnThemeSwitch;
+    private int currentThemeMode = AppCompatDelegate.MODE_NIGHT_YES; // 默认深色模式
+    private SharedPreferences sharedPreferences;
+    
     // 文字编辑输入框相关
     private EditText textEditInput;
     private LinearLayout textEditContainer;
@@ -96,6 +104,13 @@ public class EditImageActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // 初始化SharedPreferences
+        sharedPreferences = getSharedPreferences("ImageCraftPrefs", MODE_PRIVATE);
+        currentThemeMode = sharedPreferences.getInt("themeMode", AppCompatDelegate.MODE_NIGHT_YES);
+        
+        // 设置应用的夜间模式
+        AppCompatDelegate.setDefaultNightMode(currentThemeMode);
+        
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_edit_image);
@@ -105,10 +120,16 @@ public class EditImageActivity extends AppCompatActivity {
             return insets;
         });
 
+        // 已在方法开始处初始化SharedPreferences，不需要重复初始化
+        
         // 初始化UI组件
         imagePreview = findViewById(R.id.image_preview);
         btnBack = findViewById(R.id.btn_back);
         btnSave = findViewById(R.id.btn_save);
+        btnThemeSwitch = findViewById(R.id.btn_theme_switch);
+        
+        // 设置主题开关状态
+        btnThemeSwitch.setChecked(currentThemeMode == AppCompatDelegate.MODE_NIGHT_NO); // 开关状态：选中表示日间模式
         
         // 设置贴纸状态变化监听器
         imagePreview.setOnStickerStateChangeListener(new CustomImageView.OnStickerStateChangeListener() {
@@ -144,6 +165,9 @@ public class EditImageActivity extends AppCompatActivity {
         
         // 设置按钮点击事件
         setupButtonListeners();
+        
+        // 设置主题切换监听器
+        setupThemeSwitchListener();
         
         // 初始化文字编辑输入框
         initTextEditInput();
@@ -261,6 +285,27 @@ public class EditImageActivity extends AppCompatActivity {
         
         // 设置文字点击监听器
         setupTextClickListener();
+    }
+    
+    /**
+     * 设置主题切换监听器
+     */
+    private void setupThemeSwitchListener() {
+        btnThemeSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            // 切换主题模式
+            currentThemeMode = isChecked ? AppCompatDelegate.MODE_NIGHT_NO : AppCompatDelegate.MODE_NIGHT_YES;
+            
+            // 保存主题状态到SharedPreferences
+            SharedPreferences.Editor editor = sharedPreferences.edit();
+            editor.putInt("themeMode", currentThemeMode);
+            editor.apply();
+            
+            // 设置应用的夜间模式
+            AppCompatDelegate.setDefaultNightMode(currentThemeMode);
+            
+            // 重启Activity以应用新主题
+            recreate();
+        });
     }
     
     /**
@@ -453,6 +498,9 @@ public class EditImageActivity extends AppCompatActivity {
             } else if (button == btnText) {
                 // 如果是文字按钮，退出文字编辑模式
                 imagePreview.setTextMode(false);
+            } else if (button == btnSticker) {
+                // 如果是贴纸按钮，退出贴纸编辑模式
+                imagePreview.setStickerMode(false);
             }
             
             setButtonUnselected(button);
@@ -468,6 +516,9 @@ public class EditImageActivity extends AppCompatActivity {
                 } else if (currentSelectedButton == btnText) {
                     // 如果之前是文字模式，退出文字编辑模式
                     imagePreview.setTextMode(false);
+                } else if (currentSelectedButton == btnSticker) {
+                    // 如果之前是贴纸模式，退出贴纸编辑模式
+                    imagePreview.setStickerMode(false);
                 }
             }
             // 选中新按钮
@@ -507,6 +558,8 @@ public class EditImageActivity extends AppCompatActivity {
                 createFilterToolbar();
             } else if (button == btnSticker) {
                 createStickerToolbar();
+                // 进入贴纸编辑模式
+                imagePreview.setStickerMode(true);
             } else if (button == btnBrightness) {
                 // 设置亮度工具栏的方向
                 boolean isPortrait = getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT;
@@ -543,17 +596,19 @@ public class EditImageActivity extends AppCompatActivity {
                     @Override
                     public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                         if (fromUser) {
-                            int brightness = progress - 100; // 将0-200的进度转换为-100到100的亮度值
+                            int brightness = progress - 100;
                             imagePreview.adjustBrightness(brightness);
                             brightnessValue.setText(String.valueOf(brightness));
                         }
                     }
-
                     @Override
                     public void onStartTrackingTouch(SeekBar seekBar) {}
-
                     @Override
-                    public void onStopTrackingTouch(SeekBar seekBar) {}
+                    public void onStopTrackingTouch(SeekBar seekBar) {
+                        // 触摸结束后，确保滑块状态正确更新
+                        seekBar.setPressed(false);
+                        seekBar.invalidate();
+                    }
                 });
 
                 // 根据屏幕方向添加组件
@@ -561,15 +616,48 @@ public class EditImageActivity extends AppCompatActivity {
                     // 竖屏模式：水平排列
                     secondaryToolbar.addView(brightnessTitle, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
 
-                    // 创建滑块父容器，设置固定宽度600
+                    // 创建滑块父容器
                     LinearLayout seekBarContainer = new LinearLayout(this);
                     seekBarContainer.setOrientation(LinearLayout.HORIZONTAL);
-                    seekBarContainer.setLayoutParams(new LinearLayout.LayoutParams(600, LinearLayout.LayoutParams.MATCH_PARENT));
+                    // 使用dp转换而不是硬编码像素值
+                    int containerWidth = dp2px(this, 250); // 250dp宽度
+                    int containerHeight = dp2px(this, 80); // 80dp高度
+                    seekBarContainer.setLayoutParams(new LinearLayout.LayoutParams(containerWidth, containerHeight));
                     seekBarContainer.setGravity(Gravity.CENTER);
-                    seekBarContainer.setPadding(8, 4, 8, 4);
+                    seekBarContainer.setPadding(dp2px(this, 8), dp2px(this, 8), dp2px(this, 8), dp2px(this, 8));
 
                     // 将滑块添加到父容器
-                    brightnessSeekBar.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
+                    LinearLayout.LayoutParams seekBarParams = new LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT, 
+                            LinearLayout.LayoutParams.WRAP_CONTENT
+                    );
+                    seekBarParams.gravity = Gravity.CENTER;
+                    brightnessSeekBar.setLayoutParams(seekBarParams);
+
+                    // 确保滑块可点击和获取焦点
+                    brightnessSeekBar.setClickable(true);
+                    brightnessSeekBar.setFocusable(true);
+                    brightnessSeekBar.setFocusableInTouchMode(true);
+
+                    
+                    // 强制设置滑块的可触摸区域
+                    brightnessSeekBar.setPadding(dp2px(this, 10), dp2px(this, 10), dp2px(this, 10), dp2px(this, 10));
+                    
+                    // 添加触摸事件监听器，确保触摸事件被正确处理
+                    brightnessSeekBar.setOnTouchListener(new View.OnTouchListener() {
+                        @Override
+                        public boolean onTouch(View v, MotionEvent event) {
+                            // 请求父容器不要拦截触摸事件
+                            v.getParent().requestDisallowInterceptTouchEvent(true);
+                            // 当触摸结束时，允许父容器重新拦截触摸事件
+                            if (event.getAction() == MotionEvent.ACTION_UP || 
+                                event.getAction() == MotionEvent.ACTION_CANCEL) {
+                                v.getParent().requestDisallowInterceptTouchEvent(false);
+                            }
+                            return false; // 让SeekBar自己处理触摸事件
+                        }
+                    });
+
                     seekBarContainer.addView(brightnessSeekBar);
 
                     // 将父容器添加到副工具栏
@@ -652,29 +740,68 @@ public class EditImageActivity extends AppCompatActivity {
                 contrastSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                     @Override
                     public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                        int contrast = progress - 50;
-                        imagePreview.adjustContrast(contrast);
-                        contrastValue.setText(String.valueOf(contrast));
+                        if (fromUser) {
+                            int contrast = progress - 50;
+                            imagePreview.adjustContrast(contrast);
+                            contrastValue.setText(String.valueOf(contrast));
+                        }
                     }
                     @Override
                     public void onStartTrackingTouch(SeekBar seekBar) {}
                     @Override
-                    public void onStopTrackingTouch(SeekBar seekBar) {}
+                    public void onStopTrackingTouch(SeekBar seekBar) {
+                        // 触摸结束后，确保滑块状态正确更新
+                        seekBar.setPressed(false);
+                        seekBar.invalidate();
+                    }
                 });
 
                 if (isPortrait) {
                     // === 竖屏排列 ===
                     secondaryToolbar.addView(contrastTitle, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
                     
-                    // 创建滑块父容器，设置固定宽度600
+                    // 创建滑块父容器
                     LinearLayout seekBarContainer = new LinearLayout(this);
                     seekBarContainer.setOrientation(LinearLayout.HORIZONTAL);
-                    seekBarContainer.setLayoutParams(new LinearLayout.LayoutParams(600, LinearLayout.LayoutParams.MATCH_PARENT));
+                    // 使用dp转换而不是硬编码像素值
+                    int containerWidth = dp2px(this, 250); // 250dp宽度
+                    int containerHeight = dp2px(this, 80); // 80dp高度
+                    seekBarContainer.setLayoutParams(new LinearLayout.LayoutParams(containerWidth, containerHeight));
                     seekBarContainer.setGravity(Gravity.CENTER);
-                    seekBarContainer.setPadding(8, 8, 8, 8);
+                    seekBarContainer.setPadding(dp2px(this, 8), dp2px(this, 8), dp2px(this, 8), dp2px(this, 8));
                     
                     // 将滑块添加到父容器
-                    contrastSeekBar.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
+                    LinearLayout.LayoutParams seekBarParams = new LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT, 
+                            LinearLayout.LayoutParams.WRAP_CONTENT
+                    );
+                    seekBarParams.gravity = Gravity.CENTER;
+                    contrastSeekBar.setLayoutParams(seekBarParams);
+
+                    // 确保滑块可点击和获取焦点
+                    contrastSeekBar.setClickable(true);
+                    contrastSeekBar.setFocusable(true);
+                    contrastSeekBar.setFocusableInTouchMode(true);
+                    
+                    
+                    // 强制设置滑块的可触摸区域
+                    contrastSeekBar.setPadding(dp2px(this, 10), dp2px(this, 10), dp2px(this, 10), dp2px(this, 10));
+                    
+                    // 添加触摸事件监听器，确保触摸事件被正确处理
+                    contrastSeekBar.setOnTouchListener(new View.OnTouchListener() {
+                        @Override
+                        public boolean onTouch(View v, MotionEvent event) {
+                            // 请求父容器不要拦截触摸事件
+                            v.getParent().requestDisallowInterceptTouchEvent(true);
+                            // 当触摸结束时，允许父容器重新拦截触摸事件
+                            if (event.getAction() == MotionEvent.ACTION_UP || 
+                                event.getAction() == MotionEvent.ACTION_CANCEL) {
+                                v.getParent().requestDisallowInterceptTouchEvent(false);
+                            }
+                            return false; // 让SeekBar自己处理触摸事件
+                        }
+                    });
+
                     seekBarContainer.addView(contrastSeekBar);
                     
                     // 将父容器添加到副工具栏

@@ -12,6 +12,7 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PointF;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.BitmapDrawable;
@@ -22,6 +23,7 @@ import android.text.TextPaint;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +31,7 @@ import java.util.List;
 public class CustomImageView extends androidx.appcompat.widget.AppCompatImageView {
 
     private Matrix matrix = new Matrix();
-    private float minScale = 0.3f;
+    private float minScale = 0.1f;
     private float maxScale = 2.0f;
 
     private enum Mode {
@@ -59,7 +61,7 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
             float contrastScale = 1 + (contrast / 100f);
             contrastScale = Math.max(0.5f, Math.min(2.5f, contrastScale));
             
-            // 1. 创建亮度和对比度的颜色矩阵
+            // 创建亮度和对比度的颜色矩阵
             ColorMatrix brightnessContrastMatrix = new ColorMatrix();
             brightnessContrastMatrix.set(new float[]{
                     brightnessScale * contrastScale, 0, 0, 0, (1-contrastScale)*128 * brightnessScale,
@@ -68,15 +70,15 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
                     0, 0, 0, 1, 0
             });
             
-            // 2. 获取当前滤镜的颜色矩阵
+            // 获取当前滤镜的颜色矩阵
             ColorMatrix filterMatrix = getFilterColorMatrix();
             
-            // 3. 合并颜色矩阵：先应用亮度对比度，再应用滤镜
+            // 合并颜色矩阵：先应用亮度对比度，再应用滤镜
             ColorMatrix combinedMatrix = new ColorMatrix();
             combinedMatrix.postConcat(brightnessContrastMatrix);
             combinedMatrix.postConcat(filterMatrix);
             
-            // 4. 应用合并后的颜色矩阵
+            // 应用合并后的颜色矩阵
             paint.setColorFilter(new ColorMatrixColorFilter(combinedMatrix));
             
             // 绘制当前显示的图像（已包含旋转、裁剪和固定的贴纸效果）
@@ -209,7 +211,7 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
     private Mode mode = Mode.NONE;
     private PointF last = new PointF();
     private PointF start = new PointF();
-    private float minScaleFactor = 0.3f;
+    private float minScaleFactor = 0.1f;
     private float maxScaleFactor = 2.0f;
     private float[] m = new float[9];
     private ScaleGestureDetector scaleGestureDetector;
@@ -255,6 +257,9 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
     private static final int HANDLE_RADIUS = 20; // 旋转手柄的半径
     private static final int TOUCH_TOLERANCE = 30; // 触摸容差
     private static final int ROTATE_THRESHOLD = 40; // 旋转手柄的触摸阈值
+    
+    // 贴纸工具相关属性
+    private boolean isStickerMode = false;
     
     // 文字选择状态变化的回调接口
     public interface OnTextSelectionChangeListener {
@@ -891,12 +896,37 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
      * 添加贴纸元素
      */
     public void addStickerElement(int stickerResourceId) {
-        // 默认将贴纸添加到视图中心
+        if (originalBitmap == null) {
+            return;
+        }
+        
+        // 将贴纸添加到编辑区正中心
         PointF center = new PointF(getWidth() / 2f, getHeight() / 2f);
         StickerElement newSticker = new StickerElement(stickerResourceId, center, context);
         
-        // 计算合适的缩放比例，使贴纸以固定尺寸显示
-        float scale = STICKER_FIXED_BASE_SIZE / Math.max(newSticker.originalWidth, newSticker.originalHeight);
+        // 计算编辑区尺寸
+        int viewWidth = getWidth();
+        int viewHeight = getHeight();
+        
+        // 计算图像尺寸
+        int imageWidth = originalBitmap.getWidth();
+        int imageHeight = originalBitmap.getHeight();
+        
+        // 计算差值
+        int delta = (viewWidth - imageWidth) - (viewHeight - imageHeight);
+        
+        float stickerSize = 0.0f;
+        
+        if (delta > 0) {
+            // 贴纸大小为上下边大小的四分之一
+            stickerSize = viewHeight / 4f;
+        } else {
+            // 贴纸大小为左右边大小的四分之一
+            stickerSize = viewWidth / 4f;
+        }
+        
+        // 计算合适的缩放比例
+        float scale = stickerSize / Math.max(newSticker.originalWidth, newSticker.originalHeight);
         newSticker.setScale(scale);
         
         stickerElements.add(newSticker);
@@ -942,29 +972,29 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
         }
         
         try {
-            // 1. 保存当前所有效果参数
+            // 保存当前所有效果参数
             int currentBrightness = brightness;
             int currentContrast = contrast;
             Filter tempFilter = currentFilter;
             
-            // 2. 创建一个与原始图片大小相同的临时Bitmap
+            // 创建一个与原始图片大小相同的临时Bitmap
             Bitmap processedBitmap = Bitmap.createBitmap(baseOriginalBitmap.getWidth(), baseOriginalBitmap.getHeight(), Bitmap.Config.ARGB_8888);
             Canvas canvas = new Canvas(processedBitmap);
             
-            // 3. 绘制原始图片
+            // 绘制原始图片
             Paint paint = new Paint();
             canvas.drawBitmap(baseOriginalBitmap, 0, 0, paint);
             
-            // 4. 计算视图与原始图片的比例
+            // 计算视图与原始图片的比例
             float scaleX = (float) baseOriginalBitmap.getWidth() / getWidth();
             float scaleY = (float) baseOriginalBitmap.getHeight() / getHeight();
             
-            // 5. 初始化贴纸绘制画笔
+            // 初始化贴纸绘制画笔
             Paint stickerPaint = new Paint();
             stickerPaint.setAntiAlias(true);
             stickerPaint.setFilterBitmap(true);
             
-            // 6. 绘制所有贴纸元素到临时Bitmap
+            // 绘制所有贴纸元素到临时Bitmap
             for (StickerElement stickerElement : stickerElements) {
                 // 获取贴纸资源
                 Drawable stickerDrawable = context.getResources().getDrawable(stickerElement.stickerResourceId);
@@ -1041,13 +1071,13 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
                 canvas.restore();
             }
             
-            // 7. 更新baseOriginalBitmap为包含贴纸的新Bitmap
+            // 更新baseOriginalBitmap为包含贴纸的新Bitmap
             if (baseOriginalBitmap != null && !baseOriginalBitmap.isRecycled()) {
                 baseOriginalBitmap.recycle();
             }
             baseOriginalBitmap = processedBitmap;
             
-            // 8. 重新应用所有图像效果
+            // 重新应用所有图像效果
             // 重置效果参数（否则applyImageEffects不会重新应用）
             brightness = 0;
             contrast = 0;
@@ -1059,11 +1089,11 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
             this.currentFilter = tempFilter;
             applyImageEffects();
             
-            // 9. 清空贴纸元素列表，使其无法再被选中和编辑
+            // 清空贴纸元素列表，使其无法再被选中和编辑
             stickerElements.clear();
             selectedStickerElement = null;
             
-            // 10. 重新绘制视图
+            // 重新绘制视图
             invalidate();
         } catch (Exception e) {
             e.printStackTrace();
@@ -1464,38 +1494,6 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
     /**
      * 更新baseOriginalBitmap为当前显示的图像
      */
-    private void updateBaseOriginalBitmap() {
-        try {
-            // 获取当前显示的图像及其变换矩阵
-            Drawable drawable = getDrawable();
-            if (!(drawable instanceof BitmapDrawable)) return;
-            
-            BitmapDrawable bitmapDrawable = (BitmapDrawable) drawable;
-            Bitmap currentBitmap = bitmapDrawable.getBitmap();
-            
-            // 创建一个与当前Bitmap大小相同的新Bitmap，应用当前的变换矩阵
-            Bitmap processedBitmap = Bitmap.createBitmap(
-                currentBitmap.getWidth(), 
-                currentBitmap.getHeight(), 
-                Bitmap.Config.ARGB_8888
-            );
-            
-            Canvas canvas = new Canvas(processedBitmap);
-            
-            // 应用变换矩阵，确保所有变换都被正确应用
-            canvas.drawBitmap(currentBitmap, matrix, null);
-            
-            // 更新baseOriginalBitmap
-            if (baseOriginalBitmap != null && !baseOriginalBitmap.isRecycled()) {
-                baseOriginalBitmap.recycle();
-            }
-            baseOriginalBitmap = processedBitmap;
-            
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-    
     /**
      * 设置文字模式
      */
@@ -1518,6 +1516,72 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
      */
     public boolean isTextMode() {
         return isTextMode;
+    }
+    
+    /**
+     * 设置贴纸模式
+     */
+    public void setStickerMode(boolean enabled) {
+        this.isStickerMode = enabled;
+        
+        if (enabled) {
+            // 进入贴纸模式时，禁用裁剪模式和文字模式
+            setCropMode(false);
+            setTextMode(false);
+            adjustImageForStickerMode();
+        }
+        
+        invalidate();
+    }
+    
+    /**
+     * 检查是否处于贴纸模式
+     */
+    public boolean isStickerMode() {
+        return isStickerMode;
+    }
+    
+    /**
+     * 调整图像位置和大小以适应贴纸模式
+     */
+    private void adjustImageForStickerMode() {
+        if (originalBitmap == null) {
+            return;
+        }
+        
+        // 计算编辑区尺寸
+        int viewWidth = getWidth();
+        int viewHeight = getHeight();
+        
+        // 计算图像尺寸
+        int imageWidth = originalBitmap.getWidth();
+        int imageHeight = originalBitmap.getHeight();
+        
+        // 计算差值
+        int delta = (viewWidth - imageWidth) - (viewHeight - imageHeight);
+        
+        float scale = 1.0f;
+        float translateX = 0.0f;
+        float translateY = 0.0f;
+        
+        if (delta > 0) {
+            // 上下边紧贴编辑区
+            scale = (float) viewHeight / imageHeight;
+            float scaledWidth = imageWidth * scale;
+            translateX = (viewWidth - scaledWidth) / 2;
+        } else {
+            // 左右边紧贴编辑区
+            scale = (float) viewWidth / imageWidth;
+            float scaledHeight = imageHeight * scale;
+            translateY = (viewHeight - scaledHeight) / 2;
+        }
+        
+        // 重置矩阵
+        matrix.reset();
+        matrix.postScale(scale, scale);
+        matrix.postTranslate(translateX, translateY);
+        
+        setImageMatrix(matrix);
     }
     
     /**
@@ -1752,6 +1816,9 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
         // 更新图像
         setImageBitmap(resultBitmap);
         invalidate();
+        
+        // 更新baseOriginalBitmap为当前显示的完整图像（包含文字），并删除之前的图像
+        updateBaseOriginalBitmapFromCurrentDisplay();
     }
     
     /**
@@ -1816,97 +1883,96 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
     public Bitmap performCrop() {
         if (!isCropMode) return null;
         
-        // 获取原始图像
-        Drawable drawable = getDrawable();
-        if (!(drawable instanceof BitmapDrawable)) return null;
-        
-        Bitmap originalBitmap = ((BitmapDrawable) drawable).getBitmap();
-        
-        // 计算裁剪区域相对于图像的坐标
-        float[] cropPoints = new float[]{
-            cropRect.left, cropRect.top,
-            cropRect.right, cropRect.bottom
-        };
-        
-        // 获取当前图像矩阵的逆矩阵，用于将屏幕坐标转换为图像坐标
-        Matrix inverseMatrix = new Matrix();
-        if (matrix.invert(inverseMatrix)) {
-            inverseMatrix.mapPoints(cropPoints);
-        }
-        
-        // 确保裁剪坐标在图像范围内
-        int left = Math.max(0, (int) cropPoints[0]);
-        int top = Math.max(0, (int) cropPoints[1]);
-        int right = Math.min(originalBitmap.getWidth(), (int) cropPoints[2]);
-        int bottom = Math.min(originalBitmap.getHeight(), (int) cropPoints[3]);
-        
-        // 计算裁剪区域的宽度和高度
-        int cropWidth = right - left;
-        int cropHeight = bottom - top;
-        
-        // 确保裁剪区域有效
-        if (cropWidth <= 0 || cropHeight <= 0) {
+        try {
+            // 获取原始图像
+            Drawable drawable = getDrawable();
+            if (!(drawable instanceof BitmapDrawable)) return null;
+            
+            Bitmap originalBitmap = ((BitmapDrawable) drawable).getBitmap();
+            
+            // 计算裁剪区域相对于图像的坐标
+            float[] cropPoints = new float[]{
+                cropRect.left, cropRect.top,
+                cropRect.right, cropRect.bottom
+            };
+            
+            // 获取当前图像矩阵的逆矩阵，用于将屏幕坐标转换为图像坐标
+            Matrix inverseMatrix = new Matrix();
+            if (matrix.invert(inverseMatrix)) {
+                inverseMatrix.mapPoints(cropPoints);
+            }
+            
+            // 确保裁剪坐标在图像范围内
+            int left = Math.max(0, (int) cropPoints[0]);
+            int top = Math.max(0, (int) cropPoints[1]);
+            int right = Math.min(originalBitmap.getWidth(), (int) cropPoints[2]);
+            int bottom = Math.min(originalBitmap.getHeight(), (int) cropPoints[3]);
+            
+            // 计算裁剪区域的宽度和高度
+            int cropWidth = right - left;
+            int cropHeight = bottom - top;
+            
+            // 确保裁剪区域有效
+            if (cropWidth <= 0 || cropHeight <= 0) {
+                setCropMode(false);
+                return null;
+            }
+            
+            // 创建裁剪后的Bitmap
+            Bitmap croppedBitmap = Bitmap.createBitmap(
+                originalBitmap, 
+                left, 
+                top, 
+                cropWidth, 
+                cropHeight
+            );
+            
+            // 重置矩阵，准备新的显示设置
+            matrix.reset();
+            
+            // 计算缩放比例，使裁剪后的图像居中显示
+            float scaleX = getWidth() / (float) cropWidth;
+            float scaleY = getHeight() / (float) cropHeight;
+            float scale = Math.min(scaleX, scaleY);
+            
+            // 设置新的矩阵，使裁剪后的图像居中显示
+            float translateX = (getWidth() - cropWidth * scale) / 2;
+            float translateY = (getHeight() - cropHeight * scale) / 2;
+            
+            matrix.postScale(scale, scale);
+            matrix.postTranslate(translateX, translateY);
+            
+            // 重置裁剪模式
+            setCropMode(false);
+            
+            // 更新所有相关的Bitmap引用
+            if (baseOriginalBitmap != null && !baseOriginalBitmap.isRecycled() && baseOriginalBitmap != originalBitmap) {
+                baseOriginalBitmap.recycle();
+            }
+            baseOriginalBitmap = croppedBitmap;
+            
+            // 设置新的显示图像
+            setImageBitmap(croppedBitmap);
+            setImageMatrix(matrix);
+            invalidate();
+            
+            // 回收原始图像，避免内存泄漏
+            // 但要确保不是同一个引用，并且不是baseOriginalBitmap
+            if (originalBitmap != null && !originalBitmap.isRecycled() && 
+                originalBitmap != baseOriginalBitmap && originalBitmap != croppedBitmap) {
+                originalBitmap.recycle();
+            }
+            
+            // 重新绘制视图
+            invalidate();
+            
+            return croppedBitmap;
+        } catch (Exception e) {
+            e.printStackTrace();
+            // 出现异常时重置裁剪模式
             setCropMode(false);
             return null;
         }
-        
-        // 创建裁剪后的Bitmap
-        Bitmap croppedBitmap = Bitmap.createBitmap(
-            originalBitmap, 
-            left, 
-            top, 
-            cropWidth, 
-            cropHeight
-        );
-        
-        // 创建新的矩阵，将裁剪后的图像居中显示
-        Matrix resultMatrix = new Matrix();
-        
-        // 计算缩放比例，使裁剪后的图像适应屏幕
-        float scaleX = getWidth() / (float) cropWidth;
-        float scaleY = getHeight() / (float) cropHeight;
-        float scale = Math.min(scaleX, scaleY);
-        
-        // 设置缩放和平移，使裁剪后的图像居中显示
-        resultMatrix.postScale(scale, scale);
-        resultMatrix.postTranslate(
-            (getWidth() - cropWidth * scale) / 2,
-            (getHeight() - cropHeight * scale) / 2
-        );
-        
-        // 更新矩阵和图像
-        matrix.set(resultMatrix);
-        setImageMatrix(matrix);
-        invalidate();
-        
-        // 重置裁剪模式
-        setCropMode(false);
-        
-        // 保存当前矩阵
-        Matrix currentMatrix = new Matrix(matrix);
-        
-        // 直接将裁剪后的Bitmap设置为baseOriginalBitmap
-        if (baseOriginalBitmap != null && !baseOriginalBitmap.isRecycled()) {
-            baseOriginalBitmap.recycle();
-        }
-        baseOriginalBitmap = croppedBitmap;
-        
-        // 更新ImageView的显示图像
-        setImageBitmap(croppedBitmap);
-        
-        // 恢复矩阵
-        matrix.set(currentMatrix);
-        setImageMatrix(matrix);
-        
-        // 回收原始图像，删除原图片
-        if (originalBitmap != null && !originalBitmap.isRecycled()) {
-            originalBitmap.recycle();
-        }
-        
-        // 重新绘制视图
-        invalidate();
-        
-        return croppedBitmap;
     }
     
     /**
@@ -1934,6 +2000,12 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        // 检查触摸事件是否发生在图片编辑区域
+        // 如果不是在图片区域，不处理事件，让其他视图（如滑块）处理
+        if (!isTouchInImageArea(event)) {
+            return false;
+        }
+        
         // 如果是文字模式，优先处理文字触摸事件
         if (isTextMode) {
             if (handleTextTouchEvent(event)) {
@@ -1941,7 +2013,62 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
             }
         }
         
-        // 如果不是文字模式，检查是否需要处理贴纸触摸事件
+        // 如果是贴纸模式，优先处理贴纸触摸事件
+        if (isStickerMode) {
+            if (handleStickerTouchEvent(event)) {
+                return true;
+            }
+            
+            // 贴纸模式下，不处理缩放，只允许平移
+            PointF curr = new PointF(event.getX(), event.getY());
+            
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    last.set(curr);
+                    start.set(last);
+                    mode = Mode.DRAG;
+                    break;
+                
+                case MotionEvent.ACTION_MOVE:
+                    if (mode == Mode.DRAG) {
+                        float deltaX = curr.x - last.x;
+                        float deltaY = curr.y - last.y;
+                        matrix.postTranslate(deltaX, deltaY);
+                        last.set(curr.x, curr.y);
+                        
+                        // 移动图片时同步移动所有文字和贴纸
+                        for (TextElement textElement : textElements) {
+                            textElement.position.x += deltaX;
+                            textElement.position.y += deltaY;
+                        }
+                        
+                        for (StickerElement stickerElement : stickerElements) {
+                            stickerElement.position.x += deltaX;
+                            stickerElement.position.y += deltaY;
+                        }
+                    }
+                    break;
+                
+                case MotionEvent.ACTION_UP:
+                    mode = Mode.NONE;
+                    int xDiff = (int) Math.abs(curr.x - start.x);
+                    int yDiff = (int) Math.abs(curr.y - start.y);
+                    if (xDiff < 3 && yDiff < 3) {
+                        performClick();
+                    }
+                    break;
+                
+                case MotionEvent.ACTION_POINTER_UP:
+                    mode = Mode.NONE;
+                    break;
+            }
+            
+            setImageMatrix(matrix);
+            invalidate();
+            return true;
+        }
+        
+        // 非贴纸模式下，检查是否需要处理贴纸触摸事件
         if (!isTextMode && handleStickerTouchEvent(event)) {
             return true;
         }
@@ -1956,6 +2083,7 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
         float prevScale = (float) Math.sqrt(prevMatrixValues[Matrix.MSCALE_X] * prevMatrixValues[Matrix.MSCALE_X] + 
                                            prevMatrixValues[Matrix.MSKEW_X] * prevMatrixValues[Matrix.MSKEW_X]);
         
+        // 非贴纸模式下处理缩放事件
         scaleGestureDetector.onTouchEvent(event);
 
         PointF curr = new PointF(event.getX(), event.getY());
@@ -2017,6 +2145,21 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
         setImageMatrix(matrix);
         invalidate();
         return true;
+    }
+    
+    /**
+     * 检查触摸事件是否发生在图片编辑区域
+     */
+    private boolean isTouchInImageArea(MotionEvent event) {
+        // 获取当前视图的可见区域
+        Rect imageRect = new Rect();
+        getLocalVisibleRect(imageRect);
+        
+        // 检查触摸点是否在视图的可见区域内
+        int x = (int) event.getX();
+        int y = (int) event.getY();
+        
+        return imageRect.contains(x, y);
     }
     
     /**
@@ -2355,6 +2498,11 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
     private class ScaleListener extends ScaleGestureDetector.SimpleOnScaleGestureListener {
         @Override
         public boolean onScaleBegin(ScaleGestureDetector detector) {
+            if (isStickerMode) {
+                // 贴纸模式下不允许缩放图像
+                return false;
+            }
+            
             if (isCropMode) {
                 mode = Mode.ZOOM;
                 return true;
@@ -2698,7 +2846,7 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
             float contrastScale = 1 + (contrast / 100f);
             contrastScale = Math.max(0.5f, Math.min(2.5f, contrastScale));
 
-            // 1. 创建亮度和对比度的颜色矩阵
+            // 创建亮度和对比度的颜色矩阵
             ColorMatrix brightnessContrastMatrix = new ColorMatrix();
             // 先应用对比度，再应用亮度
             // 对比度矩阵: [contrast, 0, 0, 0, (1-contrast)*128]
@@ -2711,15 +2859,15 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
                     0, 0, 0, 1, 0
             });
             
-            // 2. 获取当前滤镜的颜色矩阵
+            // 获取当前滤镜的颜色矩阵
             ColorMatrix filterMatrix = getFilterColorMatrix();
             
-            // 3. 合并颜色矩阵：先应用亮度对比度，再应用滤镜
+            // 合并颜色矩阵：先应用亮度对比度，再应用滤镜
             ColorMatrix combinedMatrix = new ColorMatrix();
             combinedMatrix.postConcat(brightnessContrastMatrix);
             combinedMatrix.postConcat(filterMatrix);
             
-            // 4. 应用合并后的颜色矩阵
+            // 应用合并后的颜色矩阵
             paint.setColorFilter(new ColorMatrixColorFilter(combinedMatrix));
 
             // 绘制真正的原始图片（核心：不再用被覆盖的originalBitmap）
@@ -2754,71 +2902,218 @@ public class CustomImageView extends androidx.appcompat.widget.AppCompatImageVie
      * 顺时针旋转90°
      */
     public void rotateClockwise() {
-        // 旋转矩阵（顺时针90°）
-        matrix.postRotate(90, getWidth() / 2, getHeight() / 2);
-        setImageMatrix(matrix);
-        invalidate();
-        
-        // 更新baseOriginalBitmap
-        updateBaseOriginalBitmap();
+        rotateImage(90);
     }
     
     /**
      * 逆时针旋转90°
      */
     public void rotateCounterClockwise() {
-        // 旋转矩阵（逆时针90°）
-        matrix.postRotate(-90, getWidth() / 2, getHeight() / 2);
-        setImageMatrix(matrix);
-        invalidate();
-        
-        // 更新baseOriginalBitmap
-        updateBaseOriginalBitmap();
+        rotateImage(270); // 逆时针90°等于顺时针270°
     }
     
     /**
      * 旋转180°
      */
     public void rotate180() {
-        // 旋转矩阵（180°）
-        matrix.postRotate(180, getWidth() / 2, getHeight() / 2);
-        setImageMatrix(matrix);
-        invalidate();
-        
-        // 更新baseOriginalBitmap
-        updateBaseOriginalBitmap();
+        rotateImage(180);
+    }
+    
+    /**
+     * 旋转图像的核心方法 - 完全重写，使用简单可靠的实现
+     * @param degrees 旋转角度（必须是90的倍数）
+     */
+    private void rotateImage(int degrees) {
+        try {
+            // 确保baseOriginalBitmap有效
+            if (baseOriginalBitmap == null || baseOriginalBitmap.isRecycled()) {
+                // 尝试从当前显示获取Bitmap
+                Drawable drawable = getDrawable();
+                if (drawable instanceof BitmapDrawable) {
+                    baseOriginalBitmap = ((BitmapDrawable) drawable).getBitmap();
+                    if (baseOriginalBitmap == null || baseOriginalBitmap.isRecycled()) {
+                        return;
+                    }
+                } else {
+                    return;
+                }
+            }
+            
+            // 创建旋转矩阵
+            Matrix rotationMatrix = new Matrix();
+            rotationMatrix.setRotate(degrees);
+            
+            // 创建旋转后的Bitmap
+            Bitmap rotatedBitmap = Bitmap.createBitmap(
+                baseOriginalBitmap, 
+                0, 
+                0, 
+                baseOriginalBitmap.getWidth(), 
+                baseOriginalBitmap.getHeight(), 
+                rotationMatrix, 
+                true
+            );
+            
+            // 重置矩阵并设置新的缩放和居中
+            matrix.reset();
+            
+            // 计算新的缩放比例，使旋转后的图像居中显示
+            float scaleX = (float) getWidth() / rotatedBitmap.getWidth();
+            float scaleY = (float) getHeight() / rotatedBitmap.getHeight();
+            float scale = Math.min(scaleX, scaleY);
+            
+            // 计算居中的平移量
+            float translateX = (getWidth() - rotatedBitmap.getWidth() * scale) / 2f;
+            float translateY = (getHeight() - rotatedBitmap.getHeight() * scale) / 2f;
+            
+            // 设置矩阵变换
+            matrix.postScale(scale, scale);
+            matrix.postTranslate(translateX, translateY);
+            
+            // 回收旧的baseOriginalBitmap（如果不是同一个对象）
+            if (baseOriginalBitmap != null && !baseOriginalBitmap.isRecycled() && baseOriginalBitmap != rotatedBitmap) {
+                baseOriginalBitmap.recycle();
+            }
+            
+            // 更新baseOriginalBitmap和显示
+            baseOriginalBitmap = rotatedBitmap;
+            setImageBitmap(rotatedBitmap);
+            setImageMatrix(matrix);
+            invalidate();
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
     
     /**
      * 水平翻转
      */
     public void flipHorizontal() {
-        // 计算当前缩放因子
-        float currentScale = getCurrentScale();
-        
-        // 水平翻转矩阵
-        matrix.preScale(-1, 1, getWidth() / 2, getHeight() / 2);
-        setImageMatrix(matrix);
-        invalidate();
-        
-        // 更新baseOriginalBitmap，确保保存时包含翻转效果
-        updateBaseOriginalBitmap();
+        try {
+            // 确保baseOriginalBitmap有效
+            if (baseOriginalBitmap == null || baseOriginalBitmap.isRecycled()) {
+                // 尝试从当前显示获取Bitmap
+                Drawable drawable = getDrawable();
+                if (drawable instanceof BitmapDrawable) {
+                    baseOriginalBitmap = ((BitmapDrawable) drawable).getBitmap();
+                    if (baseOriginalBitmap == null || baseOriginalBitmap.isRecycled()) {
+                        return;
+                    }
+                } else {
+                    return;
+                }
+            }
+            
+            // 创建水平翻转后的Bitmap
+            Matrix flipMatrix = new Matrix();
+            flipMatrix.setScale(-1, 1);
+            
+            Bitmap flippedBitmap = Bitmap.createBitmap(
+                baseOriginalBitmap, 
+                0, 
+                0, 
+                baseOriginalBitmap.getWidth(), 
+                baseOriginalBitmap.getHeight(), 
+                flipMatrix, 
+                true
+            );
+            
+            // 重置矩阵并设置新的缩放和居中
+            matrix.reset();
+            
+            // 计算新的缩放比例，使翻转后的图像居中显示
+            float scaleX = (float) getWidth() / flippedBitmap.getWidth();
+            float scaleY = (float) getHeight() / flippedBitmap.getHeight();
+            float scale = Math.min(scaleX, scaleY);
+            
+            // 计算居中的平移量
+            float translateX = (getWidth() - flippedBitmap.getWidth() * scale) / 2f;
+            float translateY = (getHeight() - flippedBitmap.getHeight() * scale) / 2f;
+            
+            // 设置矩阵变换
+            matrix.postScale(scale, scale);
+            matrix.postTranslate(translateX, translateY);
+            
+            // 回收旧的baseOriginalBitmap（如果不是同一个对象）
+            if (baseOriginalBitmap != null && !baseOriginalBitmap.isRecycled() && baseOriginalBitmap != flippedBitmap) {
+                baseOriginalBitmap.recycle();
+            }
+            
+            // 更新baseOriginalBitmap和显示
+            baseOriginalBitmap = flippedBitmap;
+            setImageBitmap(flippedBitmap);
+            setImageMatrix(matrix);
+            invalidate();
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
     
     /**
      * 垂直翻转
      */
     public void flipVertical() {
-        // 计算当前缩放因子
-        float currentScale = getCurrentScale();
-        
-        // 垂直翻转矩阵
-        matrix.preScale(1, -1, getWidth() / 2, getHeight() / 2);
-        setImageMatrix(matrix);
-        invalidate();
-        
-        // 更新baseOriginalBitmap，确保保存时包含翻转效果
-        updateBaseOriginalBitmap();
+        try {
+            // 确保baseOriginalBitmap有效
+            if (baseOriginalBitmap == null || baseOriginalBitmap.isRecycled()) {
+                // 尝试从当前显示获取Bitmap
+                Drawable drawable = getDrawable();
+                if (drawable instanceof BitmapDrawable) {
+                    baseOriginalBitmap = ((BitmapDrawable) drawable).getBitmap();
+                    if (baseOriginalBitmap == null || baseOriginalBitmap.isRecycled()) {
+                        return;
+                    }
+                } else {
+                    return;
+                }
+            }
+            
+            // 创建垂直翻转后的Bitmap
+            Matrix flipMatrix = new Matrix();
+            flipMatrix.setScale(1, -1);
+            
+            Bitmap flippedBitmap = Bitmap.createBitmap(
+                baseOriginalBitmap, 
+                0, 
+                0, 
+                baseOriginalBitmap.getWidth(), 
+                baseOriginalBitmap.getHeight(), 
+                flipMatrix, 
+                true
+            );
+            
+            // 重置矩阵并设置新的缩放和居中
+            matrix.reset();
+            
+            // 计算新的缩放比例，使翻转后的图像居中显示
+            float scaleX = (float) getWidth() / flippedBitmap.getWidth();
+            float scaleY = (float) getHeight() / flippedBitmap.getHeight();
+            float scale = Math.min(scaleX, scaleY);
+            
+            // 计算居中的平移量
+            float translateX = (getWidth() - flippedBitmap.getWidth() * scale) / 2f;
+            float translateY = (getHeight() - flippedBitmap.getHeight() * scale) / 2f;
+            
+            // 设置矩阵变换
+            matrix.postScale(scale, scale);
+            matrix.postTranslate(translateX, translateY);
+            
+            // 回收旧的baseOriginalBitmap（如果不是同一个对象）
+            if (baseOriginalBitmap != null && !baseOriginalBitmap.isRecycled() && baseOriginalBitmap != flippedBitmap) {
+                baseOriginalBitmap.recycle();
+            }
+            
+            // 更新baseOriginalBitmap和显示
+            baseOriginalBitmap = flippedBitmap;
+            setImageBitmap(flippedBitmap);
+            setImageMatrix(matrix);
+            invalidate();
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
     
     /**
