@@ -66,18 +66,25 @@
     </FrameLayout>
 
     <!-- 新的工具栏区域（位于主工具栏上方） -->
-    <LinearLayout
-        android:id="@+id/secondary_toolbar"
+    <HorizontalScrollView
+        android:id="@+id/secondary_toolbar_scroll"
         android:layout_width="match_parent"
         android:layout_height="80dp"
         android:background="@color/button_background"
         android:padding="2dp"
+        android:scrollbars="none"
         android:visibility="gone"
         app:layout_constraintBottom_toTopOf="@id/toolbar_container"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent">
-        <!-- 这里将根据不同按钮显示不同内容 -->
-    </LinearLayout>
+        <LinearLayout
+            android:id="@+id/secondary_toolbar"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="horizontal">
+            <!-- 这里将根据不同按钮显示不同内容 -->
+        </LinearLayout>
+    </HorizontalScrollView>
 
     <!-- 底部工具栏 -->
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -185,6 +192,38 @@
                     android:layout_marginStart="5dp"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toEndOf="@+id/btn_contrast"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <!-- 滤镜按钮 -->
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btn_filter"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:backgroundTint="@color/button_background"
+                    android:drawableTop="@android:drawable/ic_menu_gallery"
+                    android:text="滤镜"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:layout_marginStart="5dp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@+id/btn_text"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <!-- 贴纸按钮 -->
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btn_sticker"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:backgroundTint="@color/button_background"
+                    android:drawableTop="@android:drawable/ic_menu_add"
+                    android:text="贴纸"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:layout_marginStart="5dp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@+id/btn_filter"
                     app:layout_constraintTop_toTopOf="parent" />
             </androidx.constraintlayout.widget.ConstraintLayout>
         </HorizontalScrollView>
